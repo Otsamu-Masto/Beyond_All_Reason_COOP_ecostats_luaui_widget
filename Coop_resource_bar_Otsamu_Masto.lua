@@ -85,11 +85,11 @@ local function short(n, f)
 	local abs_n = math.abs(n)
 
 	if abs_n > 999999 then
-		return sformat("%+." .. f .. "fm", n / 1000000)
+		return sformat("%." .. f .. "fm", n / 1000000)
 	elseif abs_n > 999 then
-		return sformat("%+." .. f .. "fk", n / 1000)
+		return sformat("%." .. f .. "fk", n / 1000)
 	else
-		return sformat("%+d", n)
+		return sformat("%d", n)
 	end
 end
 
@@ -171,12 +171,16 @@ local function sumAllyTeamsResource()
     local myAllyTeamID = Spring.GetTeamAllyTeamID(Spring.GetMyTeamID())
     local teamID = Spring.GetMyTeamID()
 
+
+    local combinedMetal = 0
+    local combinedEnergy = 0
+    local combinedMetalStorage = 0
+    local combinedEnergyStorage = 0
     local combinedMetalIncome = 0
     local combinedEnergyIncome = 0
     local combinedMetalUsage = 0
     local combinedEnergyUsage = 0
-    local combinedMetal = 0
-    local combinedEnergy = 0
+
 
     -- Get a list of all teams in the game
     local allTeams = Spring.GetTeamList()
@@ -191,12 +195,15 @@ local function sumAllyTeamsResource()
         -- Check if the team is an ally
         if allyTeamID == myAllyTeamID then
             -- Get the resource usage for this allied team
-            local MetalCurrent,_,_,metalIncome,metalUsage,_,_,_,_   = Spring.GetTeamResources(teamID, 'metal')
-            local EnergyCurrent,_,_,energyIncome,energyUsage,_,_,_,_   = Spring.GetTeamResources(teamID, 'energy')
+            local metalCurrent,metalStorage,_,metalIncome,metalUsage,_,_,_,_   = Spring.GetTeamResources(teamID, 'metal')
+            local energyCurrent,energyStorage,_,energyIncome,energyUsage,_,_,_,_   = Spring.GetTeamResources(teamID, 'energy')
             
              -- Add current stockpile to our combined totals
-            combinedMetal = combinedMetal + MetalCurrent
-            combinedEnergy = combinedEnergy + EnergyCurrent
+            combinedMetal = combinedMetal + metalCurrent
+            combinedEnergy = combinedEnergy + energyCurrent
+             -- Add current storage to our combined totals
+            combinedMetalStorage = combinedMetalStorage + metalStorage
+            combinedEnergyStorage = combinedEnergyStorage + energyStorage
             -- Add the income to our combined totals
             combinedMetalIncome = combinedMetalIncome + metalIncome
             combinedEnergyIncome = combinedEnergyIncome + energyIncome
@@ -206,7 +213,7 @@ local function sumAllyTeamsResource()
 
         end
     end
-    return {short(combinedMetal,1),short(combinedEnergy,1),short(combinedMetalIncome,1),short(combinedEnergyIncome,1),short(combinedMetalUsage,1),short(combinedEnergyUsage,1)}
+    return {combinedMetal,combinedEnergy,combinedMetalStorage,combinedEnergyStorage,combinedMetalIncome,combinedEnergyIncome,combinedMetalUsage,combinedEnergyUsage}
 end
 
 
@@ -225,6 +232,89 @@ local function drawRoundedRect(x, y, width, height, radius, color)
     gl.Color(1, 1, 1, 1)
 end
 
+
+
+
+-- Draw Bar Func
+local function drawBar(Rtype,mx,my,current,storage)
+    --Gemini Wip
+    local teamID = Spring.GetMyTeamID()
+
+    --local x = 10 -- X coordinate on the screen
+    --local y = 10 -- Y coordinate on the screen
+    local x = mx
+    local y = my
+    local width = 200 -- Bar width
+    local height = 20 -- Bar height
+
+    -- Draw the background (total storage)
+    gl.Color(0.3, 0.3, 0.3, 0.5) -- Black, 50% opacity
+    gl.Rect(x, y, x + width, y + height)
+
+    -- Calculate fill percentage
+    local fillPercentage = 0
+    if storage > 0 then
+        fillPercentage = current / storage
+    end
+
+    -- Draw the filled part of the bar
+    if Rtype == "Metal" then
+        gl.Color(0.8, 0.8, 0.8, 1) -- Light gray
+        local filledWidth = width * fillPercentage
+        gl.Rect(x, y, x + filledWidth, y + height)
+    end
+    if Rtype == "Energy" then
+        gl.Color(0.8, 0.8, 0, 1) -- Light yellow
+        local filledWidth = width * fillPercentage
+        gl.Rect(x, y, x + filledWidth, y + height)
+    end
+    -- Draw the text
+    gl.Color(0, 0, 0, 1) -- Black (1,1,1,1) is White
+    gl.Text(string.format(Rtype..": %.0f / %.0f", current, storage), x + 5, y + 5)
+end
+
+-- Draw Vertical Bar Func
+local function drawVerticalBar(Rtype,mx,my,current,storage,income,usage)
+    --Gemini Wip
+    local teamID = Spring.GetMyTeamID()
+
+    --local x = 10 -- X coordinate on the screen
+    --local y = 10 -- Y coordinate on the screen
+    local x = mx
+    local y = my
+    local width = 20 -- Bar width
+    local height = 200 -- Bar height
+
+    -- Draw the background (total storage)
+    gl.Color(0.3, 0.3, 0.3, 0.5) -- Black, 50% opacity
+    gl.Rect(x, y, x + width, y + height)
+
+    -- Calculate fill percentage
+    local fillPercentage = 0
+    if storage > 0 then
+        fillPercentage = current / storage
+    end
+
+    -- Draw the filled part of the bar
+    if Rtype == "Metal" then
+        gl.Color(0.8, 0.8, 0.8, 1) -- Light gray
+        local filledHeight = height * fillPercentage
+        gl.Rect(x, y, x + width, y + filledHeight)
+    end
+    if Rtype == "Energy" then
+        gl.Color(0.8, 0.8, 0, 1) -- Light yellow
+        local filledHeight = height * fillPercentage
+        gl.Rect(x, y, x + width, y + filledHeight)
+    end
+    -- Draw the text for income
+    gl.Color(0.3, 1, 0.3, 1) --Green
+    gl.Text(string.format("%.0f",income), x - 2, y + height + 15)
+    gl.Color(1, 0.3, 0.3, 1) --Red
+    gl.Text(string.format("%.0f",usage), x - 2, y + height + 5)
+    -- Draw the text for storage
+    gl.Color(1, 1, 1, 1) --White
+    gl.Text(string.format("%.0f / %.0f", current, storage), x - 15, y - 15)
+end
 
 
 
@@ -295,8 +385,10 @@ function widget:DrawScreen()
 
     --Draw bg
     -- Draw the rectangle
-    drawRoundedRect(m_x+1000, m_y-700, 300, 600, 8, {0, 0, 0, 0.5})
-
+    --drawRoundedRect(m_x+1000, m_y-700, 300, 600, 8, {0, 0, 0, 0.5})
+    drawRoundedRect(m_x+1050, m_y-610, 250, 290, 8, {0, 0, 0, 0.5})
+    -- Draw Desc text
+    font:Print(string.format("Team Economy"), e_x+750, e_y-350)
 
     --Debug print
 
@@ -309,15 +401,24 @@ function widget:DrawScreen()
 
     --Print fr
 
-    local temporarytext = {"M","E","+M/s","+E/s","-M/s","-E/s"} --pls do better than this later
-    font:Print(m_color .. recursiveTableToString(temporarytext), m_x, m_y-50, 24, "co")
-    font:Print(m_color .. recursiveTableToString(sumAllyTeamsResource()), e_x, e_y-50, 24, "co")
+    local temporarytext = {"M","E","Mstor","Estor","+M/s","+E/s","-M/s","-E/s"} --pls do better than this later
+    --font:Print(m_color .. recursiveTableToString(temporarytext), m_x, m_y-50, 24, "co")
+    --font:Print(m_color .. recursiveTableToString(sumAllyTeamsResource()), e_x, e_y-50, 24, "co")
 
-    --better placement
-    --font:Print(m_color .. recursiveTableToString(temporarytext), m_x+1050, m_y-100, 24, "co")
-    --font:Print(m_color .. recursiveTableToString(sumAllyTeamsResource()), e_x+900, e_y-100, 24, "co")
-    
+    --Horizontal Version
+    --drawBar("Metal",e_x+700,e_y-300,sumAllyTeamsResource()[1],sumAllyTeamsResource()[3])
+    --drawBar("Energy",e_x+700,e_y-350,sumAllyTeamsResource()[2],sumAllyTeamsResource()[4])
+    --Vertical Version
+    drawVerticalBar("Metal",e_x+800,e_y-585,sumAllyTeamsResource()[1],sumAllyTeamsResource()[3],sumAllyTeamsResource()[5],sumAllyTeamsResource()[7])
+    drawVerticalBar("Energy",e_x+900,e_y-585,sumAllyTeamsResource()[2],sumAllyTeamsResource()[4],sumAllyTeamsResource()[6],sumAllyTeamsResource()[8])
 
+    -- --better placement
+    -- for index, stat in ipairs(temporarytext) do
+    --     font:Print(m_color .. temporarytext[index], e_x+750, e_y-100-(index*20), 24, "co")
+    -- end
+    -- for index, stat in ipairs(sumAllyTeamsResource()) do
+    --     font:Print(m_color .. short(sumAllyTeamsResource()[index],1), e_x+900, e_y-100-(index*20), 24, "co")
+    -- end
 
     font:End()
 end
